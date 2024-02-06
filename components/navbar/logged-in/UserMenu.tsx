@@ -1,6 +1,16 @@
+"use client";
+
 import Image from "next/image";
+import { useUser } from "@/context/UserProvider";
+import theHookLogo from "@/public/the-hook-logo.png";
 
 function UserMenu() {
+  const user = useUser();
+
+  const handleSignOut = async () => {
+    await user.signOut();
+  };
+
   return (
     <div className="dropdown dropdown-end">
       <div
@@ -10,8 +20,8 @@ function UserMenu() {
       >
         <div className="w-10 rounded-full">
           <Image
-            alt="cisocodes"
-            src="https://ik.imagekit.io/cisocodes/the-hook/cisocodes.jpeg"
+            alt={user.current?.email as string}
+            src={user.current?.photoURL ? user.current.photoURL : theHookLogo}
             width={50}
             height={50}
           />
@@ -25,7 +35,7 @@ function UserMenu() {
           <a className="justify-between">Profile</a>
         </li>
         <li>
-          <a>Logout</a>
+          <a onClick={handleSignOut}>Logout</a>
         </li>
       </ul>
     </div>
