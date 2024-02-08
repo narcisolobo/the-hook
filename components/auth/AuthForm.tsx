@@ -11,6 +11,7 @@ import AuthButton from "./AuthButton";
 import EmailInput from "./EmailInput";
 import PasswordInput from "./PasswordInput";
 import AuthAlert from "./AuthAlert";
+import SignInWithGoogle from "./SignInWithGoogle";
 
 export type AuthFormInputs = {
   email: string;
@@ -66,6 +67,12 @@ function AuthForm() {
       <div className="form-control mt-6">
         <AuthButton isLogin={isLogin} toggleLogin={toggleLogin} />
       </div>
+      <div className="my-8 flex items-center">
+        <hr className="mx-8 flex-1 border-base-content" />
+        <h2>OR</h2>
+        <hr className="mx-8 flex-1 border-base-content" />
+      </div>
+      <SignInWithGoogle />
     </form>
   );
 }

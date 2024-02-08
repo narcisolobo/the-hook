@@ -6,6 +6,8 @@ import {
   useState,
 } from "react";
 
+import { useRouter } from "next/navigation";
+
 import { FirebaseError } from "firebase/app";
 
 import {
@@ -16,12 +18,13 @@ import {
   signInWithPopup,
   signOut as fbSignOut,
 } from "firebase/auth";
-import { auth, googleAuthProvider } from "@/lib/firebase";
-import { createUser } from "@/lib/firestore";
-import { HookUser } from "@/types/types";
+import { auth as fbAuth, googleAuthProvider } from "@/lib/firebase";
+import { createUserAndProfile } from "@/lib/firestore";
+import HookUser from "@/types/types";
 
 type UserContextType = {
-  current: User | null;
+  auth: User | null;
+  current: HookUser | null;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
@@ -29,6 +32,7 @@ type UserContextType = {
 };
 
 const UserContext = createContext<UserContextType>({
+  auth: null,
   current: null,
   signIn: async () => {},
   signOut: async () => {},
@@ -44,23 +48,32 @@ function useUser() {
   return context;
 }
 
-interface Props {
+type Props = {
   children: ReactNode;
-}
+};
 
 function UserProvider({ children }: Props) {
-  const [user, setUser] = useState<User | null>(null);
+  const router = useRouter();
+  const [auth, setAuth] = useState<User | null>(null);
+  const [hookUser, setHookUser] = useState<HookUser | null>(null);
 
   async function signIn(email: string, password: string) {
-    console.log("🚀 ~ signIn");
     try {
       const userCredentials = await signInWithEmailAndPassword(
-        auth,
+        fbAuth,
         email,
         password,
       );
       if (userCredentials.user) {
-        setUser(userCredentials.user);
+        setAuth(userCredentials.user);
+        setHookUser(
+          new HookUser(
+            userCredentials.user.uid,
+            userCredentials.user.email as string,
+            userCredentials.user.providerId,
+          ),
+        );
+        router.push("/dashboard");
       }
     } catch (error) {
       throw error;
@@ -69,8 +82,10 @@ function UserProvider({ children }: Props) {
 
   async function signOut() {
     try {
-      await fbSignOut(auth);
-      setUser(null);
+      await fbSignOut(fbAuth);
+      setAuth(null);
+      setHookUser(null);
+      router.push("/");
     } catch (error) {
       console.log(error);
       throw error;
@@ -78,15 +93,14 @@ function UserProvider({ children }: Props) {
   }
 
   async function signUp(email: string, password: string) {
-    console.log("🚀 ~ signUp");
     try {
       const userCredentials = await createUserWithEmailAndPassword(
-        auth,
+        fbAuth,
         email,
         password,
       );
       if (userCredentials.user) {
-        setUser(userCredentials.user);
+        setAuth(userCredentials.user);
         const hookUser: HookUser = {
           uid: userCredentials.user.uid,
           displayName: userCredentials.user.displayName ?? undefined,
@@ -94,7 +108,18 @@ function UserProvider({ children }: Props) {
           photoURL: userCredentials.user.photoURL ?? undefined,
           providerId: userCredentials.user.providerId,
         };
-        await createUser(hookUser);
+        setHookUser(
+          new HookUser(
+            hookUser.uid,
+            hookUser.email,
+            hookUser.providerId,
+            hookUser.displayName,
+            hookUser.username,
+            hookUser.photoURL,
+          ),
+        );
+        await createUserAndProfile(hookUser);
+        router.push("/dashboard");
       }
     } catch (error) {
       throw error;
@@ -103,9 +128,28 @@ function UserProvider({ children }: Props) {
 
   async function signInWithGoogle() {
     try {
-      const result = await signInWithPopup(auth, googleAuthProvider);
+      const result = await signInWithPopup(fbAuth, googleAuthProvider);
       if (result.user) {
-        setUser(result.user);
+        setAuth(result.user);
+        const hookUser: HookUser = {
+          uid: result.user.uid,
+          displayName: result.user.displayName ?? undefined,
+          email: result.user.email as string,
+          photoURL: result.user.photoURL ?? undefined,
+          providerId: result.user.providerId,
+        };
+        setHookUser(
+          new HookUser(
+            hookUser.uid,
+            hookUser.email,
+            hookUser.providerId,
+            hookUser.displayName,
+            hookUser.username,
+            hookUser.photoURL,
+          ),
+        );
+        await createUserAndProfile(hookUser);
+        router.push("/dashboard");
       }
     } catch (error) {
       if (error instanceof FirebaseError) {
@@ -115,9 +159,26 @@ function UserProvider({ children }: Props) {
   }
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(fbAuth, (user) => {
       if (user) {
-        setUser(user);
+        setAuth(user);
+        const hookUser: HookUser = {
+          uid: user.uid,
+          displayName: user.displayName ?? undefined,
+          email: user.email as string,
+          photoURL: user.photoURL ?? undefined,
+          providerId: user.providerId,
+        };
+        setHookUser(
+          new HookUser(
+            hookUser.uid,
+            hookUser.email,
+            hookUser.providerId,
+            hookUser.displayName,
+            hookUser.username,
+            hookUser.photoURL,
+          ),
+        );
       }
     });
 
@@ -126,7 +187,14 @@ function UserProvider({ children }: Props) {
 
   return (
     <UserContext.Provider
-      value={{ current: user, signIn, signOut, signUp, signInWithGoogle }}
+      value={{
+        auth,
+        current: hookUser,
+        signIn,
+        signOut,
+        signUp,
+        signInWithGoogle,
+      }}
     >
       {children}
     </UserContext.Provider>

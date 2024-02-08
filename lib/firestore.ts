@@ -1,10 +1,9 @@
 import { addDoc, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-import { HookUser } from "@/types/types";
+import HookUser from "@/types/types";
 
-async function createUser(user: HookUser) {
-  console.log("creating user...");
+async function createUserAndProfile(user: HookUser) {
   try {
     await addDoc(collection(db, "users"), {
       uid: user.uid,
@@ -17,11 +16,11 @@ async function createUser(user: HookUser) {
     });
     await addDoc(collection(db, "profiles"), {
       uid: user.uid,
-      username: "",
+      username: user.username,
     });
   } catch (error) {
     throw error;
   }
 }
 
-export { createUser };
+export { createUserAndProfile };
